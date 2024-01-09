@@ -1,0 +1,458 @@
+#include <iostream>
+#include <iomanip>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <fstream>
+#include <cstdlib>
+
+using namespace std;
+
+class User {
+private:
+    string username;
+    string password;
+
+public:
+    User() : username(""), password("") {}
+    User(const string& u, const string& p) : username(u), password(p) {}
+
+    string getUsername() const {
+        return username;
+    }
+
+    bool authenticate(const string& enteredPassword) const {
+        return password == enteredPassword;
+    }
+};
+
+struct Product {
+    string name;
+    double price;
+    string category;
+
+    Product(const string& n, double p, const string& c) : name(n), price(p), category(c) {}
+
+   
+    string to_string() const {
+        return name + " " + std::to_string(price) + " " + category;
+    }
+};
+
+struct CartItem {
+    Product product;
+    int quantity;
+    CartItem* next;
+
+    CartItem(const Product& p, int q) : product(p), quantity(q), next(nullptr) {}
+};
+
+class ShoppingCart {
+private:
+    CartItem* head;
+
+public:
+    ShoppingCart() : head(nullptr) {}
+
+    void addItem(const Product& product, int quantity) {
+        system("cls");
+        CartItem* newItem = new CartItem(product, quantity);
+        newItem->next = head;
+        head = newItem;
+
+        double itemTotal = quantity * product.price;
+
+        cout << "Added " << quantity << " " << product.name << "(s) to the cart." << endl;
+        cout << "Price: $" << product.price << " each\n";
+        cout << "Total for " << quantity << " " << product.name << "(s): $" << itemTotal << endl;
+
+
+        ofstream productFile("products.txt", ios::app);
+        productFile << product.to_string() << endl;
+        productFile.close();
+
+    }
+    cls();
+
+    void removeItem(const string& productName) {
+        system("cls");
+        CartItem* toRemove = findItem(productName);
+
+        if (toRemove) {
+            if (toRemove == head) {
+                head = toRemove->next;
+            } 
+            else {
+                CartItem* current = head;
+                while (current && current->next != toRemove) {
+                    current = current->next;
+                }
+
+                if (current) {
+                    current->next = toRemove->next;
+                }
+            }
+
+            delete toRemove;
+            cout << "Removed " << productName << " from the cart." << endl;
+            
+            
+            vector<Product> updatedProducts;
+            ifstream productFile("products.txt");
+            string productNameFromFile, category;
+            double price;
+
+            while (productFile >> productNameFromFile >> price >> category) {
+                if (productNameFromFile != productName) {
+                    updatedProducts.emplace_back(productNameFromFile, price, category);
+                }
+            }
+
+            productFile.close();
+
+            // Rewrite the "products.txt" file with the updated product list
+            ofstream updatedProductFile("products.txt");
+            for (const Product& updatedProduct : updatedProducts) {
+                updatedProductFile << updatedProduct.to_string() << endl;
+            }
+            updatedProductFile.close();
+        } else {
+            cout << "Item not found in the cart." << endl;
+        }
+
+
+    }
+ // Add cls after the procedure
+    CartItem* findItem(const string& productName) const {
+        CartItem* current = head;
+
+        while (current) {
+            if (current->product.name == productName) {
+                return current;
+            }
+
+            current = current->next;
+        }
+
+        return nullptr;
+    }
+
+    void searchItem(const string& productName) const {
+        system("cls");
+        CartItem* result = findItem(productName);
+
+        if (result) {
+            cout << "Item found in the cart:\n";
+            cout << "Product: " << result->product.name << "\n";
+            cout << "Quantity: " << result->quantity << "\n";
+            cout << "Price: $" << result->product.price << "\n";
+            cout << "Total: $" << result->quantity * result->product.price << "\n";
+        } else {
+            cout << "Item not found in the cart." << endl;
+        }
+
+         // Add cls after the procedure
+    }
+
+    void displayCart() const {
+        system("cls");
+        cout << setw(20) << left << "Product" << setw(10) << left << "Quantity" << setw(10) << left << "Price" << setw(15) << left << "Total" << endl;
+        cout << setfill('-') << setw(55) << "-" << setfill(' ') << endl;
+
+        double total = 0.0;
+        CartItem* current = head;
+
+        while (current) {
+            double itemTotal = current->quantity * current->product.price;
+            total += itemTotal;
+
+            cout << setw(20) << left << current->product.name << setw(10) << left << current->quantity
+                 << setw(10) << left << "$" << current->product.price << setw(15) << left << "$" << itemTotal << endl;
+
+            current = current->next;
+        }
+
+        if (!head) {
+            cout << "Cart is empty." << endl;
+        } else {
+            cout << setfill('-') << setw(55) << "-" << setfill(' ') << endl;
+            cout << setw(45) << left << "Total" << setw(10) << left << "$" << total << endl;
+        }
+
+         // Add cls after the procedure
+    }
+
+
+    ~ShoppingCart() {
+        while (head) {
+            CartItem* temp = head;
+            head = head->next;
+            delete temp;
+        }
+    }
+
+    bool isEmpty() const {
+        return head == nullptr;
+    }
+};
+
+class OnlineShoppingSystem {
+private:
+    vector<User> users;
+    vector<Product> products;
+    ShoppingCart cart;
+    User currentUser;
+
+    bool isLoggedIn() const {
+        return !currentUser.getUsername().empty();
+    }
+
+    void displayProductCategories() const {
+        system("cls");
+        cout << "Available Product Categories:\n";
+        // Add your product categories here
+        cout << "1. Clothing\n";
+        cout << "2. Electronics\n";
+        cout << "3. Books\n";
+
+    }
+
+    void displayProductsByCategory(const string& category) const {
+        system("cls");
+        cout << "\nProducts in the " << category << " category:\n";
+        cout << setw(20) << left << "Product" << setw(10) << left << "Price" << endl;
+        cout << setfill('-') << setw(30) << "-" << setfill(' ') << endl;
+
+        for (const Product& product : products) {
+            if (product.category == category) {
+                cout << setw(20) << left << product.name << setw(10) << left << "$" << product.price << endl;
+            }
+        }
+
+
+    }
+
+    void processPayment() {
+        system("cls");
+        // Placeholder for payment processing logic
+        cout << "\nPayment processed successfully! Thank you for shopping with us.\n";
+        // Clear the cart after successful payment
+        cart.~ShoppingCart();
+        new (&cart) ShoppingCart();
+
+    }
+
+    void registerUser() {
+        system("cls");
+        string newUsername, newPassword;
+
+        cout << "Enter a new username: ";
+        cin >> newUsername;
+
+        // Check if the username already exists
+        auto userExists = find_if(users.begin(), users.end(), [&](const User& u) {
+            return u.getUsername() == newUsername;
+        });
+
+        if (userExists == users.end()) {
+            cout << "Enter a password: ";
+            cin >> newPassword;
+
+            users.emplace_back(newUsername, newPassword);
+            cout << "User registered successfully!\n";
+        } else {
+            cout << "Username already exists. Please choose a different username.\n";
+        }
+
+         // Add cls after the procedure
+    }
+
+public:
+    OnlineShoppingSystem() {
+        // Load user information from "users.txt"
+        ifstream userFile("users.txt");
+        string username, password;
+
+        while (userFile >> username >> password) {
+            users.emplace_back(username, password);
+        }
+
+        userFile.close();
+
+        ifstream productFile("products.txt");
+        string productName, category;
+        double price;
+
+        while (productFile >> productName >> price >> category) {
+            products.emplace_back(productName, price, category);
+        }
+
+        productFile.close();
+    }
+
+    void login() {
+        system("cls");
+        string username, password;
+        cout << "Enter your username: ";
+        cin >> username;
+
+        auto user = find_if(users.begin(), users.end(), [&](const User& u) {
+            return u.getUsername() == username;
+        });
+
+        if (user != users.end()) {
+            cout << "Enter your password: ";
+            cin >> password;
+
+            if (user->authenticate(password)) {
+                currentUser = *user;
+                cout << "\nLogin successful. Welcome, " << currentUser.getUsername() << "!\n";
+            } else {
+                cout << "Incorrect password. Login failed.\n";
+            }
+        } else {
+            cout << "User not found. Login failed.\n";
+        }
+
+
+    }
+
+    void logout() {
+        currentUser = User("", ""); // Empty the current user
+        cout << "Logout successful. Goodbye!\n";
+         // Add cls after the procedure
+    }
+cls();
+    void showMenu() const {
+        cout << "\nChoose an action:\n";
+        cout << "1. View Product Categories\n";
+        cout << "2. View Products in a Category\n";
+        cout << "3. Add Product to Cart\n";
+        cout << "4. View Cart\n";
+        cout << "5. Process Payment\n";
+        cout << "6. " << (isLoggedIn() ? "Logout" : "Login") << "\n";
+        cout << "7. Register\n";
+        cout << "8. Exit\n";
+        cout << "9. Remove item\n";
+        cout << "Enter your choice: ";
+    }
+
+    void executeMenuChoice(int choice) {
+        switch (choice) {
+            case 1: {
+                displayProductCategories();
+                break;
+            }
+            case 2: {
+                string category;
+                cout << "Enter the category to view products: ";
+                cin >> category;
+                displayProductsByCategory(category);
+                break;
+            }
+            case 3: {
+                if (!isLoggedIn()) {
+                    cout << "Please login before adding items to your cart.\n";
+                    break;
+                }
+
+                string productName;
+                int quantity;
+
+                cout << "Enter product name: ";
+                cin >> productName;
+
+                cout << "Enter quantity: ";
+                cin >> quantity;
+
+                auto product = find_if(products.begin(), products.end(), [&](const Product& p) {
+                    return p.name == productName;
+                });
+
+                if (product != products.end()) {
+                    cart.addItem(*product, quantity);
+                } else {
+                    cout << "Product not found. Unable to add to the cart.\n";
+                }
+
+                break;
+            }
+            case 4: {
+                cart.displayCart();
+                break;
+            }
+            case 5: {
+                if (!isLoggedIn()) {
+                    cout << "Please login before processing payment.\n";
+                    break;
+                }
+
+                if (!cart.isEmpty()) {
+                    processPayment();
+                } else {
+                    cout << "Your cart is empty. Add items before processing payment.\n";
+                }
+
+                break;
+            }
+            case 6: {
+                if (isLoggedIn()) {
+                    logout();
+                } else {
+                    login();
+                }
+                break;
+            }
+            case 7: {
+                registerUser();
+                break;
+            }
+            case 8: {
+                cout << "Exiting the application. Thank you!\n";
+                exit(0);
+            }
+            case 9: {
+                if (!isLoggedIn()) {
+                    cout << "Please login before removing items from your cart.\n";
+                    break;
+                }
+
+                string productName;
+                cout << "Enter product name to remove from the cart: ";
+                cin >> productName;
+
+                cart.removeItem(productName);
+                break;
+            }
+            default:
+                cout << "Invalid choice. Please enter a valid option.\n";
+        }
+    }
+
+    void run() {
+        while (true) {
+            showMenu();
+
+            int choice;
+            cin >> choice;
+
+            executeMenuChoice(choice);
+        }
+    }
+};
+
+#ifdef _WIN32
+void cls() {
+    system("cls");
+#else
+void cls() {
+    system("cls");
+#endif
+}
+
+int main() {
+    OnlineShoppingSystem onlineShop;
+    onlineShop.run();
+
+    return 0;
+}
